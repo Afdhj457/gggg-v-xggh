@@ -1,0 +1,369 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+<title>图片尺寸调整器</title>
+<style>
+  * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+  
+  html, body {
+    height: 100%;
+    margin: 0;
+    overflow: hidden;
+    overscroll-behavior: none;
+    position: fixed;
+    width: 100%;
+    -webkit-user-select: none;
+    user-select: none;
+  }
+  
+  body {
+    font-family: system-ui, -apple-system, "Microsoft YaHei", sans-serif;
+    background: #1e1e2e;
+    color: #e0e0e0;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    padding: 12px;
+    touch-action: pan-x pan-y;
+  }
+
+  .box {
+    background: #2a2a3c;
+    border-radius: 16px;
+    padding: 20px;
+    width: 100%;
+    max-width: 480px;
+    max-height: 100%;
+    overflow-y: auto;
+    overscroll-behavior: contain;
+    -webkit-overflow-scrolling: touch;
+    box-shadow: 0 8px 32px rgba(0,0,0,.4);
+  }
+  h1 { font-size: 18px; margin: 0 0 14px; text-align: center; }
+
+  .drop {
+    border: 2px dashed #555;
+    border-radius: 12px;
+    padding: 20px;
+    text-align: center;
+    cursor: pointer;
+    transition: .2s;
+    margin-bottom: 14px;
+  }
+  .drop:hover, .drop.over { border-color: #7c8cff; background: #32324a; }
+  .drop p { margin: 0; color: #999; font-size: 13px; }
+  input[type=file] { display: none; }
+
+  .preview { text-align: center; margin-bottom: 12px; }
+  .preview img {
+    max-width: 100%;
+    max-height: 160px;
+    border-radius: 8px;
+    background: #111;
+    display: block;
+    margin: 0 auto;
+  }
+  .info { font-size: 12px; color: #888; margin-top: 6px; }
+
+  .row {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    margin-bottom: 12px;
+  }
+  .row label { width: 44px; font-size: 13px; color: #aaa; flex-shrink: 0; }
+  .row input[type=number] {
+    flex: 1;
+    min-width: 0;
+    padding: 9px 10px;
+    border-radius: 8px;
+    border: 1px solid #444;
+    background: #1e1e2e;
+    color: #fff;
+    font-size: 15px;
+    outline: none;
+  }
+  .row input[type=number]:focus { border-color: #7c8cff; }
+  .x { color: #666; }
+
+  .check {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    font-size: 13px;
+    color: #aaa;
+    margin-bottom: 14px;
+  }
+
+  .btn-row {
+    display: flex;
+    gap: 8px;
+    margin-bottom: 12px;
+  }
+
+  button {
+    flex: 1;
+    padding: 11px;
+    border: none;
+    border-radius: 10px;
+    background: #7c8cff;
+    color: #fff;
+    font-size: 14px;
+    font-weight: 600;
+    cursor: pointer;
+    transition: .2s;
+  }
+  button:hover { background: #6a7aee; }
+  button:disabled { background: #444; cursor: not-allowed; }
+  button.ghost {
+    background: #3a3a50;
+    color: #b0b0d0;
+  }
+  button.ghost:hover { background: #46465e; }
+
+  /* 结果区域 */
+  .result {
+    display: none;
+    margin-top: 14px;
+    padding-top: 14px;
+    border-top: 1px solid #3a3a50;
+  }
+  .result.show { display: block; }
+  .result h2 {
+    font-size: 13px;
+    font-weight: 500;
+    color: #8896c0;
+    margin: 0 0 8px;
+    letter-spacing: 1px;
+  }
+  .result .preview img {
+    max-height: 200px;
+    background: #111;
+    box-shadow: 0 4px 20px rgba(0,0,0,.5);
+  }
+  .result-info {
+    font-size: 12px;
+    color: #7c8cff;
+    margin-top: 8px;
+    text-align: center;
+  }
+</style>
+</head>
+<body>
+<div class="box">
+  <h1>🖼️ 图片尺寸调整器</h1>
+
+  <div class="drop" id="drop">
+    <p>点击选择图片，或拖拽到此处</p>
+    <input type="file" id="file" accept="image/*">
+  </div>
+
+  <div class="preview" id="preview" style="display:none">
+    <img id="img">
+    <div class="info" id="info"></div>
+  </div>
+
+  <div class="row">
+    <label>宽度</label>
+    <input type="number" id="w" min="1" placeholder="宽" inputmode="numeric">
+    <span class="x">×</span>
+    <label style="width:auto">高度</label>
+    <input type="number" id="h" min="1" placeholder="高" inputmode="numeric">
+  </div>
+
+  <div class="check">
+    <input type="checkbox" id="lock" checked>
+    <label for="lock">锁定宽高比</label>
+  </div>
+
+  <div class="btn-row">
+    <button id="btn" disabled>生成预览</button>
+    <button id="btnDownload" class="ghost" disabled>下载</button>
+  </div>
+
+  <!-- 生成后的结果区域 -->
+  <div class="result" id="result">
+    <h2>✅ 调整后的图片</h2>
+    <div class="preview">
+      <img id="resultImg">
+    </div>
+    <div class="result-info" id="resultInfo"></div>
+  </div>
+</div>
+
+<script>
+  const drop = document.getElementById('drop');
+  const fileInput = document.getElementById('file');
+  const preview = document.getElementById('preview');
+  const imgEl = document.getElementById('img');
+  const info = document.getElementById('info');
+  const wInput = document.getElementById('w');
+  const hInput = document.getElementById('h');
+  const lock = document.getElementById('lock');
+  const btn = document.getElementById('btn');
+  const btnDownload = document.getElementById('btnDownload');
+  const result = document.getElementById('result');
+  const resultImg = document.getElementById('resultImg');
+  const resultInfo = document.getElementById('resultInfo');
+
+  let img = new Image();
+  let ratio = 1;
+  let loaded = false;
+  let resultBlob = null;   // 保存生成后的 blob，供下载
+  let resultName = '';
+
+  // 禁止双指缩放
+  document.addEventListener('gesturestart', e => e.preventDefault());
+  document.addEventListener('gesturechange', e => e.preventDefault());
+  document.addEventListener('gestureend', e => e.preventDefault());
+
+  // 禁止双击缩放（放行可交互元素）
+  let lastTouchEnd = 0;
+  document.addEventListener('touchend', e => {
+    const tag = e.target.tagName;
+    if (['INPUT', 'BUTTON', 'LABEL', 'A', 'TEXTAREA', 'SELECT'].includes(tag)) {
+      lastTouchEnd = Date.now();
+      return;
+    }
+    const now = Date.now();
+    if (now - lastTouchEnd <= 300) e.preventDefault();
+    lastTouchEnd = now;
+  }, { passive: false });
+
+  // 禁止 Ctrl + 滚轮缩放
+  document.addEventListener('wheel', e => {
+    if (e.ctrlKey) e.preventDefault();
+  }, { passive: false });
+
+  // 禁止键盘缩放
+  document.addEventListener('keydown', e => {
+    if ((e.ctrlKey || e.metaKey) && ['+', '-', '=', '0'].includes(e.key)) {
+      e.preventDefault();
+    }
+  });
+
+  // 选择 / 拖拽
+  drop.addEventListener('click', () => fileInput.click());
+  drop.addEventListener('dragover', e => { e.preventDefault(); drop.classList.add('over'); });
+  drop.addEventListener('dragleave', () => drop.classList.remove('over'));
+  drop.addEventListener('drop', e => {
+    e.preventDefault();
+    drop.classList.remove('over');
+    if (e.dataTransfer.files[0]) loadFile(e.dataTransfer.files[0]);
+  });
+  fileInput.addEventListener('change', e => {
+    if (e.target.files[0]) loadFile(e.target.files[0]);
+  });
+
+  function loadFile(file) {
+    if (!file.type.startsWith('image/')) return alert('请选择图片文件');
+    const reader = new FileReader();
+    reader.onload = ev => {
+      img = new Image();
+      img.onload = () => {
+        ratio = img.width / img.height;
+        imgEl.src = img.src;
+        preview.style.display = 'block';
+        info.textContent = `原图：${img.width} × ${img.height} px`;
+        wInput.value = img.width;
+        hInput.value = img.height;
+        loaded = true;
+        btn.disabled = false;
+
+        // 换图时清掉旧结果
+        result.classList.remove('show');
+        btnDownload.disabled = true;
+        resultBlob = null;
+      };
+      img.src = ev.target.result;
+    };
+    reader.readAsDataURL(file);
+  }
+
+  // 宽高联动
+  wInput.addEventListener('input', () => {
+    if (!loaded || !lock.checked) return;
+    const w = +wInput.value;
+    if (w > 0) hInput.value = Math.round(w / ratio);
+  });
+  hInput.addEventListener('input', () => {
+    if (!loaded || !lock.checked) return;
+    const h = +hInput.value;
+    if (h > 0) wInput.value = Math.round(h * ratio);
+  });
+
+  // ⭐ 生成预览（不下载，只显示）
+  function generate() {
+    if (!loaded) return alert('请先选择图片');
+    const w = +wInput.value, h = +hInput.value;
+    if (w < 1 || h < 1) return alert('请输入有效的宽高');
+
+    const canvas = document.createElement('canvas');
+    canvas.width = w;
+    canvas.height = h;
+    const ctx = canvas.getContext('2d');
+    ctx.imageSmoothingQuality = 'high';
+    ctx.drawImage(img, 0, 0, w, h);
+
+    canvas.toBlob(blob => {
+      if (!blob) return alert('生成失败，请重试');
+      resultBlob = blob;
+      resultName = `resized_${w}x${h}.png`;
+
+      // 显示结果图
+      const url = URL.createObjectURL(blob);
+      resultImg.onload = () => URL.revokeObjectURL(url); // 加载完释放
+      resultImg.src = url;
+
+      // 显示尺寸信息
+      const sizeKB = (blob.size / 1024).toFixed(1);
+      resultInfo.textContent = `${w} × ${h} px · ${sizeKB} KB`;
+
+      result.classList.add('show');
+      btnDownload.disabled = false;
+
+      // 生成后自动滚动到结果区（内部滚动，不影响页面）
+      setTimeout(() => {
+        result.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+      }, 50);
+    }, 'image/png');
+  }
+
+  // ⭐ 下载
+  function download() {
+    if (!resultBlob) return alert('请先生成预览');
+    const a = document.createElement('a');
+    a.href = URL.createObjectURL(resultBlob);
+    a.download = resultName;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    setTimeout(() => URL.revokeObjectURL(a.href), 1000);
+  }
+
+  btn.addEventListener('click', e => {
+    e.preventDefault();
+    e.stopPropagation();
+    generate();
+  });
+
+  btnDownload.addEventListener('click', e => {
+    e.preventDefault();
+    e.stopPropagation();
+    download();
+  });
+
+  // 触摸兜底
+  btn.addEventListener('touchend', e => {
+    e.preventDefault();
+    generate();
+  }, { passive: false });
+  btnDownload.addEventListener('touchend', e => {
+    e.preventDefault();
+    download();
+  }, { passive: false });
+</script>
+</body>
+</html>
